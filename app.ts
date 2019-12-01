@@ -44,7 +44,7 @@ http.createServer(async (req, res) => {
       res.end();
       return;
     }
-    let body = response.body;
+    let body = response.body as Buffer;
     if (isThumbnail) {
       if (contentType.startsWith('image/')) {
         body = await sharp(response.body)
