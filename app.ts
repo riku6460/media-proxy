@@ -3,6 +3,7 @@ require('source-map-support').install();
 import * as http from 'http';
 import * as url from 'url';
 import * as request from 'request-promise-native';
+import * as sharp from 'sharp';
 
 const whitelist = [
   'image/',
@@ -17,7 +18,8 @@ http.createServer(async (req, res) => {
     return;
   }
   const parse = url.parse(req.url, true);
-  if (parse.pathname !== '/') {
+  const isThumbnail = parse.pathname === '/thumbnail';
+  if (parse.pathname !== '/' && !isThumbnail) {
     res.writeHead(400);
     res.end();
     return;
@@ -42,7 +44,22 @@ http.createServer(async (req, res) => {
       res.end();
       return;
     }
-    res.end(response.body);
+    let body = response.body;
+    if (isThumbnail) {
+      if (contentType.startsWith('image/')) {
+        body = await sharp(response.body)
+          .resize(280, 280, {
+            fit: 'inside',
+            withoutEnlargement: true
+          })
+          .jpeg({quality: 30}).toBuffer();
+      } else {
+        res.writeHead(301, {Location: reqUrl});
+        res.end();
+        return;
+      }
+    }
+    res.end(body);
   } catch (e) {
     res.writeHead(502);
     res.end();
