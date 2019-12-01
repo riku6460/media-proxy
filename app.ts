@@ -4,12 +4,23 @@ import * as http from 'http';
 import * as url from 'url';
 import * as request from 'request-promise-native';
 import * as sharp from 'sharp';
+import * as FFmpeg from 'fluent-ffmpeg';
+import * as fs from 'fs';
 
 const whitelist = [
   'image/',
   'video/',
   'audio/'
 ];
+
+const resize = async (src: string | Buffer): Promise<Buffer> => {
+  return await sharp(src)
+    .resize(280, 280, {
+      fit: 'inside',
+      withoutEnlargement: true
+    })
+    .jpeg({quality: 30}).toBuffer();
+};
 
 http.createServer(async (req, res) => {
   if (req.url === undefined) {
@@ -47,12 +58,21 @@ http.createServer(async (req, res) => {
     let body = response.body as Buffer;
     if (isThumbnail) {
       if (contentType.startsWith('image/')) {
-        body = await sharp(response.body)
-          .resize(280, 280, {
-            fit: 'inside',
-            withoutEnlargement: true
-          })
-          .jpeg({quality: 30}).toBuffer();
+        body = await resize(body);
+      } else if (contentType.startsWith('video/')) {
+        const rand = Math.random().toString(32).substring(2);
+        const original = `${rand}-org.jpg`;
+        const output = `${rand}.jpg`;
+        await new Promise(resolve => fs.writeFile(original, body, resolve));
+        await new Promise((resolve, reject) => {
+          FFmpeg(original)
+            .on('end', resolve)
+            .on('error', reject)
+            .screenshot({filename: output, count: 1});
+        });
+        await new Promise(resolve => fs.unlink(original, resolve));
+        body = await resize(output);
+        await new Promise(resolve => fs.unlink(output, resolve));
       } else {
         res.writeHead(301, {Location: reqUrl});
         res.end();
