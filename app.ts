@@ -29,12 +29,6 @@ http.createServer(async (req, res) => {
     return;
   }
   const parse = url.parse(req.url, true);
-  const isThumbnail = parse.pathname === '/thumbnail';
-  if (parse.pathname !== '/' && !isThumbnail) {
-    res.writeHead(400);
-    res.end();
-    return;
-  }
   const reqUrl = parse.query.url as string;
   if (!reqUrl) {
     res.writeHead(400);
@@ -60,7 +54,7 @@ http.createServer(async (req, res) => {
       return;
     }
     let body = response.body as Buffer;
-    if (isThumbnail) {
+    if (parse.query.thumbnail === '1') {
       if (contentType.startsWith('image/')) {
         body = await resize(body);
       } else if (contentType.startsWith('video/')) {
