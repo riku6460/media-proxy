@@ -19,7 +19,7 @@ const resize = async (src: string | Buffer): Promise<Buffer> => {
       fit: 'inside',
       withoutEnlargement: true
     })
-    .jpeg({quality: 30}).toBuffer();
+    .jpeg({quality: 85}).toBuffer();
 };
 
 http.createServer(async (req, res) => {
