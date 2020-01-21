@@ -61,16 +61,19 @@ http.createServer(async (req, res) => {
         const rand = Math.random().toString(32).substring(2);
         const original = `${rand}-org.jpg`;
         const output = `${rand}.jpg`;
-        await new Promise(resolve => fs.writeFile(original, body, resolve));
-        await new Promise((resolve, reject) => {
-          FFmpeg(original)
-            .on('end', resolve)
-            .on('error', reject)
-            .screenshot({filename: output, count: 1});
-        });
-        await new Promise(resolve => fs.unlink(original, resolve));
-        body = await resize(output);
-        await new Promise(resolve => fs.unlink(output, resolve));
+        try {
+          await new Promise(resolve => fs.writeFile(original, body, resolve));
+          await new Promise((resolve, reject) => {
+            FFmpeg(original)
+              .on('end', resolve)
+              .on('error', reject)
+              .screenshot({filename: output, count: 1});
+          });
+          body = await resize(output);
+        } finally {
+          await new Promise(resolve => fs.unlink(original, resolve));
+          await new Promise(resolve => fs.unlink(output, resolve));
+        }
       } else {
         res.writeHead(301, {Location: reqUrl});
         res.end();
