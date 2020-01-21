@@ -80,7 +80,8 @@ http.createServer(async (req, res) => {
     res.writeHead(200, {'Content-Type': contentType});
     res.end(body);
   } catch (e) {
-    res.writeHead(502);
+    console.error(e);
+    res.writeHead(500);
     res.end();
     return;
   }
