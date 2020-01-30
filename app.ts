@@ -40,7 +40,7 @@ http.createServer(async (req, res) => {
     const response: request.FullResponse = await request.get(reqUrl, {
       encoding: null,
       resolveWithFullResponse: true,
-      headers: {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36'}
+      headers: {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36'}
     });
     if (response.statusCode !== 200) {
       res.writeHead(502);
