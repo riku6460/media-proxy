@@ -11,6 +11,7 @@ import * as request from 'request-promise-native';
 import * as sharp from 'sharp';
 import * as FFmpeg from 'fluent-ffmpeg';
 import * as fs from 'fs';
+const gifResize = require('@gumlet/gif-resize');
 
 const whitelist = [
   'image/',
@@ -63,7 +64,9 @@ http.createServer(async (req, res) => {
     let returnContentType = contentType;
     if (parse.query.thumbnail === '1') {
       let resized: ResizeData;
-      if (contentType.startsWith('image/')) {
+      if (contentType === 'image/gif') {
+        resized = {data: await gifResize({width: 280, height: 280})(body), contentType: 'image/gif'};
+      } else if (contentType.startsWith('image/')) {
         resized = await resize(body);
       } else if (contentType.startsWith('video/')) {
         const rand = Math.random().toString(32).substring(2);

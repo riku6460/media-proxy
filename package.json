@@ -6,6 +6,7 @@
     "build": "tsc"
   },
   "dependencies": {
+    "@gumlet/gif-resize": "^1.0.4",
     "@types/fluent-ffmpeg": "^2.1.11",
     "@types/node": "^12.12.14",
     "@types/request-promise-native": "^1.0.17",
