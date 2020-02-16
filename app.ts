@@ -1,5 +1,10 @@
 require('source-map-support').install();
 
+interface ResizeData {
+  data: Buffer;
+  contentType: string;
+}
+
 import * as http from 'http';
 import * as url from 'url';
 import * as request from 'request-promise-native';
@@ -13,13 +18,14 @@ const whitelist = [
   'audio/'
 ];
 
-const resize = async (src: string | Buffer): Promise<Buffer> => {
-  return await sharp(src)
+const resize = async (src: string | Buffer): Promise<ResizeData> => {
+  const isOpaque = (await sharp(src).stats()).isOpaque;
+  const resize = sharp(src)
     .resize(280, 280, {
       fit: 'inside',
       withoutEnlargement: true
-    })
-    .jpeg({quality: 85}).toBuffer();
+    });
+  return {data: await (isOpaque ? resize.jpeg({quality: 85}) : resize.png()).toBuffer(), contentType: isOpaque ? 'image/jpeg' : 'image/png'};
 };
 
 http.createServer(async (req, res) => {
@@ -56,8 +62,9 @@ http.createServer(async (req, res) => {
     let body = response.body as Buffer;
     let returnContentType = contentType;
     if (parse.query.thumbnail === '1') {
+      let resized: ResizeData;
       if (contentType.startsWith('image/')) {
-        body = await resize(body);
+        resized = await resize(body);
       } else if (contentType.startsWith('video/')) {
         const rand = Math.random().toString(32).substring(2);
         const original = `${rand}-org.jpg`;
@@ -70,7 +77,7 @@ http.createServer(async (req, res) => {
               .on('error', reject)
               .screenshot({filename: output, count: 1});
           });
-          body = await resize(output);
+          resized = await resize(output);
         } finally {
           await new Promise(resolve => fs.unlink(original, resolve));
           await new Promise(resolve => fs.unlink(output, resolve));
@@ -80,7 +87,8 @@ http.createServer(async (req, res) => {
         res.end();
         return;
       }
-      returnContentType = 'image/jpeg';
+      returnContentType = resized.contentType;
+      body = resized.data;
     }
     res.writeHead(200, {'Content-Type': returnContentType});
     res.end(body);
