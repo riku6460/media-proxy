@@ -54,6 +54,7 @@ http.createServer(async (req, res) => {
       return;
     }
     let body = response.body as Buffer;
+    let returnContentType = contentType;
     if (parse.query.thumbnail === '1') {
       if (contentType.startsWith('image/')) {
         body = await resize(body);
@@ -79,8 +80,9 @@ http.createServer(async (req, res) => {
         res.end();
         return;
       }
+      returnContentType = 'image/jpeg';
     }
-    res.writeHead(200, {'Content-Type': contentType});
+    res.writeHead(200, {'Content-Type': returnContentType});
     res.end(body);
   } catch (e) {
     console.error(e);
