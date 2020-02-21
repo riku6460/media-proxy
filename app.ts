@@ -29,6 +29,13 @@ const resize = async (src: string | Buffer): Promise<ResizeData> => {
   return {data: await (isOpaque ? resize.jpeg({quality: 85}) : resize.png()).toBuffer(), contentType: isOpaque ? 'image/jpeg' : 'image/png'};
 };
 
+const addHeader = (key: string, value: string | undefined, headers: http.OutgoingHttpHeaders) => {
+  headers[key] = value;
+  if (!value) {
+    delete headers[key];
+  }
+};
+
 http.createServer(async (req, res) => {
   if (req.url === undefined) {
     res.writeHead(500);
@@ -61,7 +68,7 @@ http.createServer(async (req, res) => {
       return;
     }
     let body = response.body as Buffer;
-    let returnContentType = contentType;
+    const headers: http.OutgoingHttpHeaders = {};
     if (parse.query.thumbnail === '1') {
       let resized: ResizeData;
       if (contentType === 'image/gif') {
@@ -90,10 +97,16 @@ http.createServer(async (req, res) => {
         res.end();
         return;
       }
-      returnContentType = resized.contentType;
+      addHeader('Content-Type', resized.contentType, headers);
       body = resized.data;
+    } else {
+      addHeader('Content-Disposition', response.headers['content-disposition'], headers);
+      addHeader('Content-Length', response.headers['content-length'], headers);
+      addHeader('ETag', response.headers['etag'] as string | undefined, headers);
+      addHeader('Last-Modified', response.headers['last-modified'], headers);
+      addHeader('x-amz-request-id', response.headers['x-amz-request-id'] as string | undefined, headers);
     }
-    res.writeHead(200, {'Content-Type': returnContentType});
+    res.writeHead(200, headers);
     res.end(body);
   } catch (e) {
     console.error(e);
