@@ -7,14 +7,13 @@
   },
   "dependencies": {
     "@gumlet/gif-resize": "^1.0.4",
+    "@types/bent": "^7.0.1",
     "@types/fluent-ffmpeg": "^2.1.11",
     "@types/node": "^12.12.14",
-    "@types/request-promise-native": "^1.0.17",
     "@types/sharp": "^0.23.0",
     "@types/source-map-support": "^0.5.0",
+    "bent": "^7.1.0",
     "fluent-ffmpeg": "^2.1.2",
-    "request": "^2.88.0",
-    "request-promise-native": "^1.0.8",
     "sharp": "^0.23.3",
     "source-map-support": "^0.5.16",
     "typescript": "^3.7.2"

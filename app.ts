@@ -7,7 +7,7 @@ interface ResizeData {
 
 import * as http from 'http';
 import * as url from 'url';
-import * as request from 'request-promise-native';
+import * as bent from 'bent';
 import * as sharp from 'sharp';
 import * as FFmpeg from 'fluent-ffmpeg';
 import * as fs from 'fs';
@@ -36,6 +36,8 @@ const addHeader = (key: string, value: string | undefined, headers: http.Outgoin
   }
 };
 
+const request = bent({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.116 Safari/537.36'});
+
 http.createServer(async (req, res) => {
   if (req.url === undefined) {
     res.writeHead(500);
@@ -51,11 +53,7 @@ http.createServer(async (req, res) => {
   }
 
   try {
-    const response: request.FullResponse = await request.get(reqUrl, {
-      encoding: null,
-      resolveWithFullResponse: true,
-      headers: {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.116 Safari/537.36'}
-    });
+    const response = await request(reqUrl) as bent.NodeResponse;
     if (response.statusCode !== 200) {
       res.writeHead(502);
       res.end();
@@ -67,20 +65,22 @@ http.createServer(async (req, res) => {
       res.end();
       return;
     }
-    let body = response.body as Buffer;
     const headers: http.OutgoingHttpHeaders = {};
     if (parse.query.thumbnail === '1') {
       let resized: ResizeData;
-      if (contentType === 'image/gif') {
-        resized = {data: await gifResize({width: 280, height: 280})(body), contentType: 'image/gif'};
-      } else if (contentType.startsWith('image/')) {
-        resized = await resize(body);
+      if (contentType.startsWith('image/')) {
+        const body: Buffer = await new Promise(resolve => {
+          const chunks: Buffer[] = [];
+          response.on('data', chunk => chunks.push(chunk));
+          response.on('end', () => resolve(Buffer.concat(chunks)));
+        });
+        resized = contentType === 'image/gif' ? {data: await gifResize({width: 280, height: 280})(body), contentType} : await resize(body);
       } else if (contentType.startsWith('video/')) {
         const rand = Math.random().toString(32).substring(2);
-        const original = `${rand}-org.jpg`;
+        const original = `${rand}-org`;
         const output = `${rand}.jpg`;
         try {
-          await new Promise(resolve => fs.writeFile(original, body, resolve));
+          await new Promise(resolve => response.pipe(fs.createWriteStream(original)).on('close', resolve));
           await new Promise((resolve, reject) => {
             FFmpeg(original)
               .on('end', resolve)
@@ -98,16 +98,18 @@ http.createServer(async (req, res) => {
         return;
       }
       addHeader('Content-Type', resized.contentType, headers);
-      body = resized.data;
+      res.writeHead(200, headers);
+      res.end(resized.data);
     } else {
+      addHeader('Content-Type', contentType, headers);
       addHeader('Content-Disposition', response.headers['content-disposition'], headers);
       addHeader('Content-Length', response.headers['content-length'], headers);
       addHeader('ETag', response.headers['etag'] as string | undefined, headers);
       addHeader('Last-Modified', response.headers['last-modified'], headers);
       addHeader('x-amz-request-id', response.headers['x-amz-request-id'] as string | undefined, headers);
+      res.writeHead(200, headers);
+      response.pipe(res);
     }
-    res.writeHead(200, headers);
-    res.end(body);
   } catch (e) {
     console.error(e);
     res.writeHead(500);
