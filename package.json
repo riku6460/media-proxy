@@ -9,12 +9,12 @@
     "@gumlet/gif-resize": "^1.0.4",
     "@types/bent": "^7.0.1",
     "@types/fluent-ffmpeg": "^2.1.11",
-    "@types/node": "^12.12.14",
-    "@types/sharp": "^0.23.0",
+    "@types/node": "^14.0.25",
+    "@types/sharp": "^0.25.1",
     "@types/source-map-support": "^0.5.0",
     "bent": "^7.1.0",
     "fluent-ffmpeg": "^2.1.2",
-    "sharp": "^0.23.3",
+    "sharp": "^0.25.4",
     "source-map-support": "^0.5.16",
     "typescript": "^3.7.2"
   }
