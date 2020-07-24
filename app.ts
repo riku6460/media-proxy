@@ -11,6 +11,7 @@ import * as bent from 'bent';
 import * as sharp from 'sharp';
 import * as FFmpeg from 'fluent-ffmpeg';
 import * as fs from 'fs';
+
 const gifResize = require('@gumlet/gif-resize');
 
 const whitelist = [
@@ -26,7 +27,10 @@ const resize = async (src: string | Buffer): Promise<ResizeData> => {
       fit: 'inside',
       withoutEnlargement: true
     });
-  return {data: await (isOpaque ? resize.jpeg({quality: 85}) : resize.png()).toBuffer(), contentType: isOpaque ? 'image/jpeg' : 'image/png'};
+  return {
+    data: await (isOpaque ? resize.jpeg({quality: 85}) : resize.png()).toBuffer(),
+    contentType: isOpaque ? 'image/jpeg' : 'image/png'
+  };
 };
 
 const addHeader = (key: string, value: string | undefined, headers: http.OutgoingHttpHeaders) => {
@@ -74,7 +78,10 @@ http.createServer(async (req, res) => {
           response.on('data', chunk => chunks.push(chunk));
           response.on('end', () => resolve(Buffer.concat(chunks)));
         });
-        resized = contentType === 'image/gif' ? {data: await gifResize({width: 280, height: 280})(body), contentType} : await resize(body);
+        resized = contentType === 'image/gif' ? {
+          data: await gifResize({width: 280, height: 280})(body),
+          contentType
+        } : await resize(body);
       } else if (contentType.startsWith('video/')) {
         const rand = Math.random().toString(32).substring(2);
         const original = `${rand}-org`;
