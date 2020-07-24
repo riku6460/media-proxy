@@ -40,7 +40,18 @@ const addHeader = (key: string, value: string | undefined, headers: http.Outgoin
   }
 };
 
-const request = bent({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.116 Safari/537.36'});
+const bentRequest = bent(200, 300, 301, 302, 303, 307, 308, {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.116 Safari/537.36'});
+
+const request = async (url: string, count: number): Promise<bent.NodeResponse> => {
+  const res = await bentRequest(url) as bent.NodeResponse;
+  if (res.statusCode === 300 || res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 303 || res.statusCode === 307 || res.statusCode === 308) {
+    if (++count >= 5) {
+      throw new Error('Too many redirects!');
+    }
+    return await request(res.headers.location, count);
+  }
+  return res;
+}
 
 http.createServer(async (req, res) => {
   if (req.url === undefined) {
@@ -57,7 +68,7 @@ http.createServer(async (req, res) => {
   }
 
   try {
-    const response = await request(reqUrl) as bent.NodeResponse;
+    const response = await request(reqUrl, 0) as bent.NodeResponse;
     if (response.statusCode !== 200) {
       res.writeHead(502);
       res.end();
