@@ -40,7 +40,7 @@ const addHeader = (key: string, value: string | undefined, headers: http.Outgoin
   }
 };
 
-const bentRequest = bent(200, 300, 301, 302, 303, 307, 308, {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.116 Safari/537.36'});
+const bentRequest = bent(200, 300, 301, 302, 303, 307, 308, {'User-Agent': 'media-proxy (+https://github.com/riku6460/media-proxy)'});
 
 const request = async (url: string, count: number): Promise<bent.NodeResponse> => {
   const res = await bentRequest(url) as bent.NodeResponse;
