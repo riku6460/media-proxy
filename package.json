@@ -2,6 +2,7 @@
   "name": "media-proxy",
   "version": "1.0.0",
   "main": "app.js",
+  "license": "MIT",
   "scripts": {
     "build": "tsc"
   },
