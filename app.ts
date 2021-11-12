@@ -14,7 +14,7 @@ import * as fs from 'fs';
 
 const gifResize = require('@gumlet/gif-resize');
 
-const whitelist = [
+const allowedContentTypePrefixes = [
   'image/',
   'video/',
   'audio/'
@@ -75,7 +75,7 @@ http.createServer(async (req, res) => {
       return;
     }
     const contentType = response.headers['content-type'] as string;
-    if (whitelist.find(value => contentType.startsWith(value)) === undefined) {
+    if (!allowedContentTypePrefixes.some(prefix => contentType.startsWith(prefix))) {
       res.writeHead(301, {Location: reqUrl});
       res.end();
       return;
@@ -84,11 +84,10 @@ http.createServer(async (req, res) => {
     if (parse.query.thumbnail === '1') {
       let resized: ResizeData;
       if (contentType.startsWith('image/')) {
-        const body: Buffer = await new Promise(resolve => {
-          const chunks: Buffer[] = [];
-          response.on('data', chunk => chunks.push(chunk));
-          response.on('end', () => resolve(Buffer.concat(chunks)));
-        });
+        let body = Buffer.of();
+        for await (const chunk of response) {
+          body = Buffer.concat([body, chunk]);
+        }
         resized = contentType === 'image/gif' ? {
           data: await gifResize({width: 280, height: 280})(body),
           contentType
@@ -107,8 +106,7 @@ http.createServer(async (req, res) => {
           });
           resized = await resize(output);
         } finally {
-          await new Promise(resolve => fs.unlink(original, resolve));
-          await new Promise(resolve => fs.unlink(output, resolve));
+          await Promise.all([fs.promises.unlink(original), fs.promises.unlink(output)]);
         }
       } else {
         res.writeHead(301, {Location: reqUrl});
@@ -122,9 +120,9 @@ http.createServer(async (req, res) => {
       addHeader('Content-Type', contentType, headers);
       addHeader('Content-Disposition', response.headers['content-disposition'], headers);
       addHeader('Content-Length', response.headers['content-length'], headers);
-      addHeader('ETag', response.headers['etag'] as string | undefined, headers);
+      addHeader('ETag', response.headers['etag'], headers);
       addHeader('Last-Modified', response.headers['last-modified'], headers);
-      addHeader('x-amz-request-id', response.headers['x-amz-request-id'] as string | undefined, headers);
+      addHeader('x-amz-request-id', response.headers['x-amz-request-id'], headers);
       res.writeHead(200, headers);
       response.pipe(res);
     }
