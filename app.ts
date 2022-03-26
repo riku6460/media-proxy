@@ -1,20 +1,20 @@
-require('source-map-support').install();
-
 interface ResizeData {
   data: Buffer;
   contentType: string;
 }
 
+import 'source-map-support/register';
 import * as http from 'http';
 import * as url from 'url';
 import * as bent from 'bent';
 import * as sharp from 'sharp';
 import * as FFmpeg from 'fluent-ffmpeg';
 import * as fs from 'fs';
+import * as stream from 'stream';
 
 const gifResize = require('@gumlet/gif-resize');
 
-const allowedContentTypePrefixes = [
+const ALLOWED_CONTENT_TYPE_PREFIXES = [
   'image/',
   'video/',
   'audio/'
@@ -33,12 +33,14 @@ const resize = async (src: string | Buffer): Promise<ResizeData> => {
   };
 };
 
-const addHeader = (key: string, value: string | undefined, headers: http.OutgoingHttpHeaders) => {
-  headers[key] = value;
-  if (!value) {
-    delete headers[key];
+const copyHeaders = (keys: string[], from: http.IncomingHttpHeaders, to: http.OutgoingHttpHeaders) => {
+  for (const key of keys) {
+    to[key] = from[key];
+    if (!to[key]) {
+      delete to[key];
+    }
   }
-};
+}
 
 const bentRequest = bent(200, 300, 301, 302, 303, 307, 308, {'User-Agent': 'media-proxy (+https://github.com/riku6460/media-proxy)'});
 
@@ -59,6 +61,7 @@ http.createServer(async (req, res) => {
     res.end();
     return;
   }
+
   const parse = url.parse(req.url, true);
   const reqUrl = parse.query.url as string;
   if (!reqUrl) {
@@ -74,12 +77,14 @@ http.createServer(async (req, res) => {
       res.end();
       return;
     }
+
     const contentType = response.headers['content-type'] as string;
-    if (!allowedContentTypePrefixes.some(prefix => contentType.startsWith(prefix))) {
+    if (ALLOWED_CONTENT_TYPE_PREFIXES.every(prefix => !contentType.startsWith(prefix))) {
       res.writeHead(301, {Location: reqUrl});
       res.end();
       return;
     }
+
     const headers: http.OutgoingHttpHeaders = {};
     if (parse.query.thumbnail === '1') {
       let resized: ResizeData;
@@ -97,7 +102,7 @@ http.createServer(async (req, res) => {
         const original = `${rand}-org`;
         const output = `${rand}.jpg`;
         try {
-          await new Promise(resolve => response.pipe(fs.createWriteStream(original)).on('close', resolve));
+          await stream.promises.pipeline(response, fs.createWriteStream(original));
           await new Promise((resolve, reject) => {
             FFmpeg(original)
               .on('end', resolve)
@@ -106,25 +111,27 @@ http.createServer(async (req, res) => {
           });
           resized = await resize(output);
         } finally {
-          await Promise.all([fs.promises.unlink(original), fs.promises.unlink(output)]);
+          await Promise.allSettled([fs.promises.unlink(original), fs.promises.unlink(output)]);
         }
       } else {
         res.writeHead(301, {Location: reqUrl});
         res.end();
         return;
       }
-      addHeader('Content-Type', resized.contentType, headers);
+      headers['Content-Type'] = resized.contentType;
       res.writeHead(200, headers);
       res.end(resized.data);
     } else {
-      addHeader('Content-Type', contentType, headers);
-      addHeader('Content-Disposition', response.headers['content-disposition'], headers);
-      addHeader('Content-Length', response.headers['content-length'], headers);
-      addHeader('ETag', response.headers['etag'], headers);
-      addHeader('Last-Modified', response.headers['last-modified'], headers);
-      addHeader('x-amz-request-id', response.headers['x-amz-request-id'], headers);
+      copyHeaders([
+        'content-type',
+        'content-disposition',
+        'content-length',
+        'etag',
+        'last-modified',
+        'x-amz-request-id'
+      ], response.headers, headers);
       res.writeHead(200, headers);
-      response.pipe(res);
+      await stream.promises.pipeline(response, res);
     }
   } catch (e) {
     console.error(e);
