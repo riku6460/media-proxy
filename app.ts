@@ -3,7 +3,6 @@ interface ResizeData {
   contentType: string;
 }
 
-import 'source-map-support/register';
 import * as http from 'http';
 import * as url from 'url';
 import * as bent from 'bent';
